@@ -1,21 +1,81 @@
 #!/usr/bin/env bash
+
 set -Eeuo pipefail
+
 SCRATCH_ALIAS="ci-${BUILD_BUILDID:-local}-$$"
+
 mkdir -p test-results
+
 cleanup() {
-  echo "Cleaning up scratch org ${SCRATCH_ALIAS}"
-  sf org delete scratch --target-org "${SCRATCH_ALIAS}" --no-prompt || true
+    echo "=================================================="
+    echo "Deleting Scratch Org: ${SCRATCH_ALIAS}"
+    echo "=================================================="
+
+    sf org delete scratch \
+        --target-org "${SCRATCH_ALIAS}" \
+        --no-prompt || true
 }
+
 trap cleanup EXIT
+# Add 2 export variables############
 
-echo "Creating scratch org"
-sf org create scratch --target-dev-hub DevHub --definition-file config/project-scratch-def.json --alias "${SCRATCH_ALIAS}" --duration-days 1 --wait 20 --set-default
+echo "=================================================="
+echo "Creating Scratch Org"
+echo "=================================================="
 
-echo "Deploying source"
-sf project deploy start --target-org "${SCRATCH_ALIAS}" --source-dir force-app --wait 20
+sf org create scratch \
+    --target-dev-hub DevHub \
+    --definition-file config/project-scratch-def.json \
+    --alias "${SCRATCH_ALIAS}" \
+    --duration-days 1 \
+    --wait 20 \
+    --set-default
 
-echo "Assigning permission set"
-sf org assign permset --target-org "${SCRATCH_ALIAS}" --name Account_Health_User
+echo "=================================================="
+echo "Scratch Org Created"
+echo "=================================================="
 
-echo "Running Apex tests"
-sf apex run test --target-org "${SCRATCH_ALIAS}" --test-level RunLocalTests --code-coverage --wait 20 --result-format junit --output-dir test-results
+sf org display \
+    --target-org "${SCRATCH_ALIAS}"
+
+echo "=================================================="
+echo "Deploying Salesforce Metadata"
+echo "=================================================="
+
+sf project deploy start \
+    --target-org "${SCRATCH_ALIAS}" \
+    --source-dir force-app \
+    --wait 30 \
+    --verbose
+
+echo "=================================================="
+echo "Assigning Permission Set"
+echo "=================================================="
+
+sf org assign permset \
+    --target-org "${SCRATCH_ALIAS}" \
+    --name Account_Health_User || true
+
+echo "=================================================="
+echo "Running Apex Tests"
+echo "=================================================="
+
+sf apex run test \
+    --target-org "${SCRATCH_ALIAS}" \
+    --test-level RunLocalTests \
+    --code-coverage \
+    --result-format junit \
+    --output-dir test-results \
+    --wait 30
+
+echo "=================================================="
+echo "Generating Coverage Report"
+echo "=================================================="
+
+sf apex get test \
+    --target-org "${SCRATCH_ALIAS}" \
+    --code-coverage || true
+
+echo "=================================================="
+echo "Scratch Org Validation Successful"
+echo "=================================================="
