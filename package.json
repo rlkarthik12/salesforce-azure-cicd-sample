@@ -1,0 +1,9 @@
+{
+  "name": "salesforce-azure-cicd-sample",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test:unit": "sf apex run test --test-level RunLocalTests --wait 20 --result-format human",
+    "lint": "echo No JavaScript lint rules required for this minimal sample"
+  }
+}

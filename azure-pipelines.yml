@@ -1,0 +1,72 @@
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+      - feature/*
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  SF_INSTANCE_URL: https://login.salesforce.com
+
+stages:
+- stage: Validate
+  displayName: Validate in temporary Salesforce scratch org
+  jobs:
+  - job: ScratchOrgValidation
+    displayName: Create, deploy, test, and delete scratch org
+    timeoutInMinutes: 45
+    steps:
+    - checkout: self
+      clean: true
+
+    - bash: |
+        set -euo pipefail
+        npm install --global @salesforce/cli
+        sf version
+      displayName: Install Salesforce CLI
+
+    - bash: |
+        set -euo pipefail
+        mkdir -p "$(Agent.TempDirectory)/salesforce"
+        printf '%s' "$(SF_JWT_KEY_B64)" | base64 --decode > "$(Agent.TempDirectory)/salesforce/server.key"
+        chmod 600 "$(Agent.TempDirectory)/salesforce/server.key"
+        sf org login jwt \
+          --username "$(SF_DEVHUB_USERNAME)" \
+          --client-id "$(SF_CONSUMER_KEY)" \
+          --jwt-key-file "$(Agent.TempDirectory)/salesforce/server.key" \
+          --instance-url "$(SF_INSTANCE_URL)" \
+          --alias DevHub \
+          --set-default-dev-hub
+      displayName: Authenticate Dev Hub with JWT
+
+    - bash: |
+        chmod +x scripts/ci.sh
+        scripts/ci.sh
+      displayName: Scratch org CI lifecycle
+      env:
+        BUILD_BUILDID: $(Build.BuildId)
+
+    - task: PublishTestResults@2
+      displayName: Publish Apex test results
+      condition: succeededOrFailed()
+      inputs:
+        testResultsFormat: JUnit
+        testResultsFiles: 'test-results/**/*.xml'
+        failTaskOnFailedTests: true
+        failTaskOnMissingResultsFile: true
+        testRunTitle: Salesforce Apex tests
+
+    - bash: |
+        rm -rf "$(Agent.TempDirectory)/salesforce"
+        sf org logout --target-org DevHub --no-prompt || true
+      displayName: Remove credentials and Dev Hub authentication
+      condition: always()

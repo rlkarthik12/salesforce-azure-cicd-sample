@@ -1,0 +1,8 @@
+{
+  "orgName": "Azure Pipeline Scratch Org",
+  "edition": "Developer",
+  "features": [],
+  "settings": {
+    "lightningExperienceSettings": {"enableS1DesktopEnabled": true}
+  }
+}

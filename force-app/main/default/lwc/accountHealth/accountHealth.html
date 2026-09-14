@@ -1,0 +1,10 @@
+<template>
+  <lightning-card title="Account Health" icon-name="standard:account">
+    <div class="slds-p-around_medium">
+      <template if:true={accounts}>
+        <lightning-datatable key-field="id" data={accounts} columns={columns} hide-checkbox-column></lightning-datatable>
+      </template>
+      <template if:true={error}><p class="slds-text-color_error">{errorMessage}</p></template>
+    </div>
+  </lightning-card>
+</template>
